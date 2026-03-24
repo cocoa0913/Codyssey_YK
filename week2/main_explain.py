@@ -33,6 +33,8 @@ def sort_by_flammability(inventory):
 
 # 인화성 지수 0.7 이상인 행만 추려 새 리스트로 반환하는 함수
 def filter_dangerous(inventory):
+    if not inventory:  # read_csv 실패 등으로 빈 리스트가 넘어온 경우 → inventory[0]에서 IndexError 방지
+        return []
     header = inventory[0]  # 첫 번째 행(헤더)을 별도 보관
     dangerous = [header]  # 반환할 리스트를 헤더로 초기화
     for row in inventory[1:]:  # 헤더를 제외한 데이터 행만 순회
@@ -81,6 +83,8 @@ def read_binary(filename):
                     data.append(row.split(','))  # 쉼표로 분리해 리스트로 만든 뒤 data에 추가
     except FileNotFoundError:  # 파일이 존재하지 않을 때 예외 처리
         print(f'Error: {filename} 파일을 찾을 수 없습니다.')
+    except UnicodeDecodeError as e:  # .bin 파일이 손상되어 UTF-8 디코딩에 실패할 때 예외 처리
+        print(f'Error: {filename} 디코딩 실패 - {e}')
     except OSError as e:  # 그 외 파일 I/O 오류 처리
         print(f'Error: {filename} 파일 읽기 실패 - {e}')
     return data  # 파싱된 2차원 리스트 반환
@@ -93,6 +97,9 @@ def main():
     # 1. CSV 읽기 및 출력
     print('=== 화성 기지 입고 물질 목록 ===')
     inventory = read_csv(csv_file)  # CSV 파일을 2차원 리스트로 읽기
+    if not inventory:  # read_csv가 실패해 빈 리스트를 반환했을 경우 이후 로직에서 크래시 방지
+        print('Error: 데이터가 없어 프로그램을 종료합니다.')
+        return  # 빈 데이터로 계속 진행하면 filter_dangerous에서 IndexError 발생하므로 조기 종료
     print_inventory(inventory)  # 전체 목록 출력
 
     # 2. 인화성 높은 순으로 in-place 정렬 (sorted_inventory 별도 변수 없음)
@@ -123,3 +130,62 @@ def main():
 
 if __name__ == '__main__':  # 이 파일이 직접 실행될 때만 main() 호출 (모듈로 import 시에는 실행 안 됨)
     main()
+
+
+# =============================================================================
+# [이진 파일(Binary File) 설명]
+# =============================================================================
+#
+# ── 텍스트 파일 vs 이진 파일 ──────────────────────────────────────────────────
+#
+# 텍스트 파일 저장 (save_csv — 'w' 모드)
+#   저장 내용 예시:
+#     Hydrogen,H2,1,Compressed Gas,0.9\n
+#     Oxygen,O2,2,Compressed Gas,0.85\n
+#   - OS가 개행 문자를 자동 변환함 (\n → Windows에서 \r\n)
+#   - 사람이 메모장으로 열어도 그대로 읽힘
+#
+# 이진 파일 저장 (save_binary — 'wb' 모드)
+#   f.write(','.join(row).encode('utf-8'))  # 문자열 → 바이트
+#
+#   'wb' 모드는 OS의 개행 변환을 하지 않음.
+#   encode('utf-8')이 각 문자를 바이트로 직접 변환:
+#     'H'  → 0x48
+#     'y'  → 0x79
+#     ','  → 0x2C
+#     '0'  → 0x30
+#     '.'  → 0x2E
+#     '9'  → 0x39
+#     '\n' → 0x0A  ← Windows에서도 0x0A 그대로 (0x0D 0x0A로 바뀌지 않음)
+#
+#   즉 .bin 파일을 메모장으로 열면 내용은 같아 보이지만,
+#   실제 바이트 레벨에서 개행 처리가 다름.
+#
+# 이진 파일 읽기 (read_binary — 'rb' 모드)
+#   row = line.rstrip(b'\n').decode('utf-8')  # 바이트 → 문자열
+#
+#   - 'r'  모드: \r\n을 자동으로 \n으로 변환해서 줌
+#   - 'rb' 모드: 변환 없이 날 바이트 그대로 줌
+#              → 그래서 b'\n'(바이트)으로 직접 제거해야 함
+#
+# ── 장단점 비교 ───────────────────────────────────────────────────────────────
+#
+#   항목          텍스트 파일 (.csv)                이진 파일 (.bin)
+#   ──────────    ──────────────────────────────    ──────────────────────────
+#   가독성        메모장으로 바로 확인 가능          16진수 편집기가 필요
+#   이식성        OS마다 개행 처리가 달라짐          바이트 그대로 유지, OS 무관
+#   용량          숫자도 문자열로 저장               숫자를 바이트로 직접 저장하면
+#                 (예: 0.9 = 3바이트)               더 작게 저장 가능
+#   속도          인코딩 변환 오버헤드 있음          변환 없이 바로 읽고 씀
+#   이 코드에서   사람이 읽고 편집할 파일            프로그램 간 데이터 전달용
+#                 (danger.csv)                      (List.bin)
+#
+# ── 이 코드에서의 실질적 차이 ──────────────────────────────────────────────────
+#
+#   save_binary에서 'wb'를 'w'로 바꾸면
+#   Windows에서 개행이 \r\n으로 저장되고,
+#   read_binary에서 'rb'로 읽으면 \r이 남아 데이터가 오염됨.
+#
+#   모드를 쌍으로 맞춰야(wb ↔ rb) 데이터가 정확히 보존되는 것이
+#   이진 파일 사용의 핵심.
+# =============================================================================

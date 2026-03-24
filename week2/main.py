@@ -27,6 +27,8 @@ def sort_by_flammability(inventory):
 
 
 def filter_dangerous(inventory):
+    if not inventory:
+        return []
     header = inventory[0]
     dangerous = [header]
     for row in inventory[1:]:
@@ -72,6 +74,8 @@ def read_binary(filename):
                     data.append(row.split(','))
     except FileNotFoundError:
         print(f'Error: {filename} 파일을 찾을 수 없습니다.')
+    except UnicodeDecodeError as e:
+        print(f'Error: {filename} 디코딩 실패 - {e}')
     except OSError as e:
         print(f'Error: {filename} 파일 읽기 실패 - {e}')
     return data
@@ -83,6 +87,9 @@ def main():
     # 1. CSV 읽기 및 출력
     print('=== 화성 기지 입고 물질 목록 ===')
     inventory = read_csv(csv_file)
+    if not inventory:
+        print('Error: 데이터가 없어 프로그램을 종료합니다.')
+        return
     print_inventory(inventory)
 
     # 2. 인화성 높은 순으로 in-place 정렬 (sorted_inventory 별도 변수 없음)
