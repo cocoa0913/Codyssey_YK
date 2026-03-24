@@ -1,0 +1,115 @@
+def read_csv(filename):
+    data = []
+    try:
+        with open(filename, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    data.append(line.split(','))
+    except FileNotFoundError:
+        print(f'Error: {filename} 파일을 찾을 수 없습니다.')
+    except OSError as e:
+        print(f'Error: {filename} 파일 읽기 실패 - {e}')
+    return data
+
+
+def print_inventory(inventory):
+    for row in inventory:
+        print(', '.join(row))
+
+
+def sort_by_flammability(inventory):
+    # 새 리스트 생성 없이 원본 in-place 정렬
+    try:
+        inventory[1:] = sorted(inventory[1:], key=lambda x: float(x[4]), reverse=True)
+    except (ValueError, IndexError) as e:
+        print(f'Error: 정렬 중 오류 발생 - {e}')
+
+
+def filter_dangerous(inventory):
+    header = inventory[0]
+    dangerous = [header]
+    for row in inventory[1:]:
+        try:
+            if float(row[4]) >= 0.7:
+                dangerous.append(row)
+        except (ValueError, IndexError):
+            pass
+    return dangerous
+
+
+def save_csv(filename, data):
+    try:
+        with open(filename, 'w', encoding='utf-8') as f:
+            for row in data:
+                f.write(','.join(row) + '\n')
+        print(f'\n{filename} 저장 완료.')
+    except OSError as e:
+        print(f'Error: {filename} 저장 실패 - {e}')
+
+
+def save_binary(filename, data):
+    # 전체 문자열 조립 없이 행 단위로 직접 write
+    try:
+        with open(filename, 'wb') as f:
+            for i, row in enumerate(data):
+                if i > 0:
+                    f.write(b'\n')
+                f.write(','.join(row).encode('utf-8'))
+        print(f'{filename} 저장 완료.')
+    except OSError as e:
+        print(f'Error: {filename} 저장 실패 - {e}')
+
+
+def read_binary(filename):
+    # 전체 바이트 로드 없이 행 단위로 읽기
+    data = []
+    try:
+        with open(filename, 'rb') as f:
+            for line in f:
+                row = line.rstrip(b'\n').decode('utf-8')
+                if row:
+                    data.append(row.split(','))
+    except FileNotFoundError:
+        print(f'Error: {filename} 파일을 찾을 수 없습니다.')
+    except OSError as e:
+        print(f'Error: {filename} 파일 읽기 실패 - {e}')
+    return data
+
+
+def main():
+    csv_file = 'Mars_Base_Inventory_List.csv'
+
+    # 1. CSV 읽기 및 출력
+    print('=== 화성 기지 입고 물질 목록 ===')
+    inventory = read_csv(csv_file)
+    print_inventory(inventory)
+
+    # 2. 인화성 높은 순으로 in-place 정렬 (sorted_inventory 별도 변수 없음)
+    sort_by_flammability(inventory)
+    print('\n=== 인화성 순 정렬 목록 ===')
+    print_inventory(inventory)
+
+    # 보너스: 정렬된 전체 목록 이진 파일 저장
+    save_binary('Mars_Base_Inventory_List.bin', inventory)
+
+    # 3. 인화성 지수 0.7 이상 필터링
+    dangerous = filter_dangerous(inventory)
+    del inventory  # 전체 목록 즉시 해제
+
+    print('\n=== 인화성 위험 물질 목록 (0.7 이상) ===')
+    print_inventory(dangerous)
+
+    # 4. 위험 물질 목록 CSV 저장
+    save_csv('Mars_Base_Inventory_danger.csv', dangerous)
+    del dangerous  # 위험 목록 즉시 해제
+
+    # 보너스: 이진 파일 읽기 및 출력
+    print('\n=== 이진 파일에서 읽은 목록 ===')
+    binary_data = read_binary('Mars_Base_Inventory_List.bin')
+    print_inventory(binary_data)
+    del binary_data
+
+
+if __name__ == '__main__':
+    main()
