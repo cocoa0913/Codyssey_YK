@@ -51,30 +51,36 @@ def save_csv(filename, data):
 
 
 def save_binary(filename, data):
-    # 전체 문자열 조립 없이 행 단위로 직접 write
     try:
         with open(filename, 'wb') as f:
-            for i, row in enumerate(data):
-                if i > 0:
-                    f.write(b'\n')
-                f.write(','.join(row).encode('utf-8'))
+            f.write(len(data).to_bytes(4, 'big'))
+            for row in data:
+                f.write(len(row).to_bytes(2, 'big'))
+                for field in row:
+                    encoded = field.encode('utf-8')
+                    f.write(len(encoded).to_bytes(2, 'big'))
+                    f.write(encoded)
         print(f'{filename} 저장 완료.')
     except OSError as e:
         print(f'Error: {filename} 저장 실패 - {e}')
 
 
 def read_binary(filename):
-    # 전체 바이트 로드 없이 행 단위로 읽기
     data = []
     try:
         with open(filename, 'rb') as f:
-            for line in f:
-                row = line.rstrip(b'\n').decode('utf-8')
-                if row:
-                    data.append(row.split(','))
+            row_count = int.from_bytes(f.read(4), 'big')
+            for _ in range(row_count):
+                field_count = int.from_bytes(f.read(2), 'big')
+                row = []
+                for _ in range(field_count):
+                    field_len = int.from_bytes(f.read(2), 'big')
+                    field = f.read(field_len).decode('utf-8')
+                    row.append(field)
+                data.append(row)
     except FileNotFoundError:
         print(f'Error: {filename} 파일을 찾을 수 없습니다.')
-    except UnicodeDecodeError as e:
+    except (UnicodeDecodeError, ValueError) as e:
         print(f'Error: {filename} 디코딩 실패 - {e}')
     except OSError as e:
         print(f'Error: {filename} 파일 읽기 실패 - {e}')
