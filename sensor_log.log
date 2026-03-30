@@ -1,0 +1,2 @@
+datetime, mars_base_internal_temperature, mars_base_external_temperature, mars_base_internal_humidity, mars_base_external_illuminance, mars_base_internal_co2, mars_base_internal_oxygen
+2026-03-30 21:04:05, 27.6198, 0.3676, 51.8648, 699.0458, 0.0876, 4.0984
