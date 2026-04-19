@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python mars_mission_computer.py)",
+      "Bash(py mars_mission_computer.py)",
+      "PowerShell(python mars_mission_computer.py)",
+      "PowerShell(Get-Command python -All)",
+      "PowerShell(Get-Command py -ErrorAction SilentlyContinue)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\kanta\\Desktop\\Codyssey_YK\\week6"
+    ]
+  }
+}
